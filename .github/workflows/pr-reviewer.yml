@@ -1,0 +1,43 @@
+name: "AI Code Reviewer Agent"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Permissões necessárias para ler o código e comentar no Pull Request
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    name: "Gemini Code Review"
+    runs-on: ubuntu-latest
+    # Evita rodar em PRs criados pelo próprio bot caso haja automações de bot
+    if: ${{ github.actor != 'dependabot[bot]' }}
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "action/requirements.txt"
+
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r action/requirements.txt
+
+      - name: Executar Agente de Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: "gemini-2.5-flash"
+          MAX_DIFF_CHARS: "120000"
+        run: |
+          python action/review_pr.py
